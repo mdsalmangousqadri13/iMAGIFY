@@ -103,83 +103,101 @@
 // export default Login
 
 
-import React, { useContext, useEffect, useState } from 'react'
-import { assets } from '../assets/assets'
-import { AppContext } from '../context/AppContext'
-import { motion } from 'framer-motion'   // ✅ Correct import
-import axios from 'axios'
-import { toast } from 'react-toastify'
+
+//Github
+
+
+
+import React, { useContext, useEffect, useState } from 'react';
+import { assets } from '../assets/assets';
+import { AppContext } from '../context/AppContext';
+import { motion } from "framer-motion";    // Corrected import
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const Login = () => {
+  const [state, setState] = useState('Login');
+  const { setShowLogin, backendUrl, setToken, setUser } = useContext(AppContext);
 
-  const [state, setState] = useState('Login')
-  const { setShowLogin, backendUrl, setToken, setUser } = useContext(AppContext)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: ''
+  });
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false);
 
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  // Form submission handler
   const onSubmitHandler = async (e) => {
-    e.preventDefault()
-
-    if (!email || !password || (state === 'Sign up' && !name)) {
-      toast.error('Please fill out all fields.')
-      return
+    e.preventDefault();
+    
+    // Basic email validation
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      toast.error("Invalid email format");
+      return;
     }
+
+    setLoading(true);
 
     try {
-      const url = state === 'Login' 
-        ? `${backendUrl}/api/user/login`
-        : `${backendUrl}/api/user/register`
-
-      const payload = state === 'Login' 
-        ? { email, password }
-        : { name, email, password }
-
-      const { data } = await axios.post(url, payload)
+      const endpoint = state === 'Login' ? '/api/users/login' : '/api/users/register';
+      const { data } = await axios.post(`${backendUrl}${endpoint}`, formData);
 
       if (data.success) {
-        setToken(data.token)
-        setUser(data.user)
-        localStorage.setItem('token', data.token)
-        setShowLogin(false)
-        toast.success(data.message || `${state} successful`)
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('token', data.token);
+        setShowLogin(false);
+        toast.success(`${state} successful!`);
       } else {
-        toast.error(data.message)
+        toast.error(data.message || 'Something went wrong');
       }
-
     } catch (error) {
-      toast.error(error.response?.data?.message || "Something went wrong")
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || 'Failed to connect to the server');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
+  // Disable scrolling when the modal is open
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
-
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = 'unset'
-    }
-  }, [])
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   return (
     <div className='fixed top-0 left-0 right-0 bottom-0 z-10 backdrop-blur-sm bg-black/30 flex justify-center items-center'>
 
       <motion.form
         onSubmit={onSubmitHandler}
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0.2, y: 50 }}
         transition={{ duration: 0.3 }}
-        className='relative bg-white p-10 rounded-xl text-slate-500 w-96'
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className='relative bg-white p-10 rounded-xl text-slate-500 w-full max-w-md'
       >
         <h1 className='text-center text-2xl text-neutral-700 font-medium'>{state}</h1>
-        <p className='text-sm text-center'>Welcome back! Please sign in to continue</p>
+        <p className='text-sm'>Welcome back! Please sign in to continue</p>
 
-        {state === 'Sign up' && (
+        {state !== 'Login' && (
           <div className='border px-6 py-2 flex items-center gap-2 rounded-full mt-5'>
-            <img src={assets.user_icon} alt="User Icon" />
+            <img src={assets.user_icon} alt="user" />
             <input
-              onChange={e => setName(e.target.value)}
-              value={name}
+              name="name"
+              onChange={handleInputChange}
+              value={formData.name}
               type="text"
               className='outline-none text-sm w-full'
               placeholder='Full Name'
@@ -189,22 +207,24 @@ const Login = () => {
         )}
 
         <div className='border px-6 py-2 flex items-center gap-2 rounded-full mt-4'>
-          <img src={assets.email_icon} alt="Email Icon" />
+          <img src={assets.email_icon} alt="email" />
           <input
-            onChange={e => setEmail(e.target.value)}
-            value={email}
+            name="email"
+            onChange={handleInputChange}
+            value={formData.email}
             type="email"
             className='outline-none text-sm w-full'
-            placeholder='Email id'
+            placeholder='Email ID'
             required
           />
         </div>
 
         <div className='border px-6 py-2 flex items-center gap-2 rounded-full mt-4'>
-          <img src={assets.lock_icon} alt="Lock Icon" />
+          <img src={assets.lock_icon} alt="lock" />
           <input
-            onChange={e => setPassword(e.target.value)}
-            value={password}
+            name="password"
+            onChange={handleInputChange}
+            value={formData.password}
             type="password"
             className='outline-none text-sm w-full'
             placeholder='Password'
@@ -214,32 +234,32 @@ const Login = () => {
 
         <p className='text-sm text-blue-600 my-4 cursor-pointer'>Forgot password?</p>
 
-        <button className='bg-blue-600 w-full text-white py-2 rounded-full'>
-          {state === 'Login' ? 'Login' : 'Create Account'}
+        <button
+          type="submit"
+          className={`bg-blue-600 w-full text-white py-2 rounded-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={loading}
+        >
+          {loading ? 'Processing...' : (state === 'Login' ? 'Login' : 'Create Account')}
         </button>
 
-        {state === 'Login' ? (
-          <p className='mt-5 text-center'>
-            Don't have an account? 
-            <span className='text-blue-600 cursor-pointer' onClick={() => setState('Sign up')}> Sign up</span>
-          </p>
-        ) : (
-          <p className='mt-5 text-center'>
-            Already have an account? 
-            <span className='text-blue-600 cursor-pointer' onClick={() => setState('Login')}> Login</span>
-          </p>
-        )}
+        <p className='mt-5 text-center'>
+          {state === 'Login' ? (
+            <>Don't have an account? <span className='text-blue-600 cursor-pointer' onClick={() => setState('Sign up')}>Sign up</span></>
+          ) : (
+            <>Already have an account? <span className='text-blue-600 cursor-pointer' onClick={() => setState('Login')}>Login</span></>
+          )}
+        </p>
 
         <img
           onClick={() => setShowLogin(false)}
           src={assets.cross_icon}
-          alt="Close Icon"
-          className='absolute top-5 right-5 cursor-pointer'
+          alt="close"
+          className='absolute top-5 right-5 cursor-pointer w-5'
         />
       </motion.form>
 
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;
